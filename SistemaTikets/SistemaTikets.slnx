@@ -1,1 +1,5 @@
-<Solution />
++<Solution>
+  <Folder Name="/SistemaTikets/">
+    <Project Path="SistemaTikets.Domain\SistemaTikets.Domain.csproj" />
+  </Folder>
+</Solution>
