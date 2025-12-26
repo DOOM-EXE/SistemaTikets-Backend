@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="SistemaTikets.Domain/SistemaTikets.Domain.csproj" Id="b3866a5e-3073-4927-a776-256707e329c7" />
+  <Project Path="SistemaTikets.Infrastructure/SistemaTikets.Infrastructure.csproj" Id="b15e82b5-130a-4964-9eb3-ba8e77bb993c" />
 </Solution>
