@@ -1,4 +1,4 @@
-namespace SistemaDeTikets.Application.DTOs.Catalogos;
+namespace SistemaTikets.Application.DTOs.Catalogos;
 
 public class PrioridadDto
 {

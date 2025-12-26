@@ -1,4 +1,4 @@
-namespace SistemaDeTikets.Application.DTOs.Auth;
+namespace SistemaTikets.Application.DTOs.Auth;
 
 public class LoginResponse
 {

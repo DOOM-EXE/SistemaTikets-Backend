@@ -1,4 +1,4 @@
-namespace SistemaDeTikets.Application.DTOs.Solicitudes;
+namespace SistemaTikets.Application.DTOs.Solicitudes;
 
 public class UpdateSolicitudRequest
 {

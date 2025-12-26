@@ -1,4 +1,4 @@
-namespace SistemaDeTikets.Application.DTOs.Comentarios;
+namespace SistemaTikets.Application.DTOs.Comentarios;
 
 public class CreateComentarioRequest
 {

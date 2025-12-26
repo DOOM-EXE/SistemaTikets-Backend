@@ -1,4 +1,4 @@
-namespace SistemaDeTikets.Application.DTOs.Usuarios;
+namespace SistemaTikets.Application.DTOs.Usuarios;
 
 public class UsuarioDto
 {
