@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SistemaTikets.Application.Services;
 using SistemaTikets.Domain.Interfaces;
+using SistemaTikets.Infrastructure.Data;
 using SistemaTikets.Infrastructure.Persistence;
 using SistemaTikets.Infrastructure.Repositories;
 using SistemaTikets.Infrastructure.Security;
@@ -120,6 +121,30 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Ejecutar seeding automático si las tablas están vacías
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        
+        // Asegurar que la base de datos esté creada y migraciones aplicadas
+        await context.Database.MigrateAsync();
+        
+        // Ejecutar seeding (solo si las tablas están vacías)
+        await DatabaseSeeder.SeedAsync(context);
+        
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Database seeding completado exitosamente.");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un error durante el seeding de la base de datos.");
+    }
+}
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
