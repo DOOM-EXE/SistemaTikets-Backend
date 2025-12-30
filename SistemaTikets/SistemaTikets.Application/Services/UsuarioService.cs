@@ -107,10 +107,23 @@ public class UsuarioService : IUsuarioService
         if (usuario == null)
             throw new InvalidOperationException("Usuario no encontrado");
 
+        // Actualizar nombre completo
         usuario.NombreCompleto = request.NombreCompleto;
+        
+        // Actualizar username si se proporciona y es diferente al actual
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != usuario.Username)
+        {
+            // Verificar que el nuevo username no esté en uso por otro usuario
+            if (await _usuarioRepository.ExistsAsync(request.Username))
+                throw new InvalidOperationException("El nombre de usuario ya existe");
+            
+            usuario.Username = request.Username;
+        }
+        
         usuario.IdRol = request.IdRol;
         usuario.IdAreaAsignada = request.IdAreaAsignada;
 
+        // Actualizar contraseña si se proporciona
         if (!string.IsNullOrEmpty(request.NewPassword))
         {
             usuario.PasswordHash = HashPassword(request.NewPassword);

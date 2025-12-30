@@ -101,6 +101,7 @@ public class SolicitudRepository : ISolicitudRepository
     public async Task<IEnumerable<Solicitud>> GetBySolicitanteAsync(int idSolicitante)
     {
         return await _context.Solicitudes
+            .Include(s => s.Solicitante)
             .Include(s => s.Area)
             .Include(s => s.TipoSolicitud)
             .Include(s => s.Prioridad)
@@ -128,6 +129,7 @@ public class SolicitudRepository : ISolicitudRepository
     {
         return await _context.Solicitudes
             .Include(s => s.Solicitante)
+            .Include(s => s.Area)
             .Include(s => s.TipoSolicitud)
             .Include(s => s.Prioridad)
             .Include(s => s.Estado)
@@ -142,10 +144,15 @@ public class SolicitudRepository : ISolicitudRepository
         _context.Solicitudes.Add(solicitud);
         await _context.SaveChangesAsync();
 
-        // Recargar para obtener el codigo generado por el trigger
-        await _context.Entry(solicitud).ReloadAsync();
-
-        return solicitud;
+        // Recargar con todas las relaciones de navegación
+        return await _context.Solicitudes
+            .Include(s => s.Solicitante)
+            .Include(s => s.Area)
+            .Include(s => s.TipoSolicitud)
+            .Include(s => s.Prioridad)
+            .Include(s => s.Estado)
+            .Include(s => s.GestorAsignado)
+            .FirstAsync(s => s.IdSolicitud == solicitud.IdSolicitud);
     }
 
     public async Task UpdateAsync(Solicitud solicitud)

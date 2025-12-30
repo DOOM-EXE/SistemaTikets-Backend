@@ -25,4 +25,5 @@ public class Usuario
     public ICollection<Solicitud> SolicitudesAsignadasPor { get; set; } = new List<Solicitud>();
     public ICollection<TrazabilidadSolicitud> Trazabilidades { get; set; } = new List<TrazabilidadSolicitud>();
     public ICollection<Comentario> Comentarios { get; set; } = new List<Comentario>();
+    public ICollection<Encargado> EncargadosDeAreas { get; set; } = new List<Encargado>();
 }

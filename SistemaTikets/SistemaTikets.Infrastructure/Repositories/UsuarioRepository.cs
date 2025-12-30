@@ -40,6 +40,15 @@ public class UsuarioRepository : IUsuarioRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<Usuario>> GetByAreaAsync(int idArea)
+    {
+        return await _context.Usuarios
+            .Include(u => u.Rol)
+            .Include(u => u.AreaAsignada)
+            .Where(u => u.IdAreaAsignada == idArea)
+            .ToListAsync();
+    }
+
     public async Task<Usuario> AddAsync(Usuario usuario)
     {
         _context.Usuarios.Add(usuario);

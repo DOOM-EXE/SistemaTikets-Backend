@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaTikets.Domain.Entities;
 using SistemaTikets.Infrastructure.Persistence;
+using SistemaTikets.Infrastructure.Security;
 
 namespace SistemaTikets.Infrastructure.Data;
 
@@ -19,7 +20,8 @@ public static class DatabaseSeeder
         await SeedPrioridadesAsync(context);
         await SeedAreasAsync(context);
         await SeedTiposSolicitudAsync(context);
-        await SeedUsuarioAdminAsync(context);
+        await SeedUsuariosAsync(context);
+        await SeedEncargadosAsync(context);
 
         await context.SaveChangesAsync();
     }
@@ -29,7 +31,6 @@ public static class DatabaseSeeder
         var roles = new List<Rol>
         {
             new() { Nombre = "Admin" },
-            new() { Nombre = "Coordinador" },
             new() { Nombre = "Gestor" },
             new() { Nombre = "Solicitante" }
         };
@@ -43,7 +44,7 @@ public static class DatabaseSeeder
         var estados = new List<Estado>
         {
             new() { Nombre = "Nueva" },
-            new() { Nombre = "En Proceso" },
+            new() { Nombre = "En Progreso" },
             new() { Nombre = "Resuelta" },
             new() { Nombre = "Cerrada" },
             new() { Nombre = "Cancelada" }
@@ -60,7 +61,7 @@ public static class DatabaseSeeder
             new() { Nombre = "Baja" },
             new() { Nombre = "Media" },
             new() { Nombre = "Alta" },
-            new() { Nombre = "Urgente" }
+            new() { Nombre = "Crítica" }
         };
 
         await context.Prioridades.AddRangeAsync(prioridades);
@@ -130,32 +131,214 @@ public static class DatabaseSeeder
         await context.SaveChangesAsync();
     }
 
-    private static async Task SeedUsuarioAdminAsync(ApplicationDbContext context)
+    private static async Task SeedUsuariosAsync(ApplicationDbContext context)
     {
+        // Obtener roles
         var rolAdmin = await context.Roles.FirstAsync(r => r.Nombre == "Admin");
+        var rolGestor = await context.Roles.FirstAsync(r => r.Nombre == "Gestor");
+        var rolSolicitante = await context.Roles.FirstAsync(r => r.Nombre == "Solicitante");
 
-        // Hash de la contraseña "Admin123!" usando SHA256
-        var passwordHash = HashPassword("Admin123!");
+        // Obtener áreas
+        var areasTI = await context.Areas.FirstAsync(a => a.Nombre == "Tecnología de la Información");
+        var areasRRHH = await context.Areas.FirstAsync(a => a.Nombre == "Recursos Humanos");
+        var areasLogistica = await context.Areas.FirstAsync(a => a.Nombre == "Logística");
+        var areasContabilidad = await context.Areas.FirstAsync(a => a.Nombre == "Contabilidad");
+        var areasOperaciones = await context.Areas.FirstAsync(a => a.Nombre == "Operaciones");
 
-        var usuarioAdmin = new Usuario
+        var usuarios = new List<Usuario>
         {
-            NombreCompleto = "Administrador del Sistema",
-            Username = "admin",
-            PasswordHash = passwordHash,
-            IdRol = rolAdmin.IdRol,
-            IdAreaAsignada = null,
-            IdCreadoPor = null,
-            FechaCreacionUsuario = DateTime.UtcNow
+            // ========== ADMINISTRADORES ==========
+            new()
+            {
+                NombreCompleto = "Super Administrador",
+                Username = "superadmin",
+                PasswordHash = PasswordHasher.HashPassword("SuperAdmin123!"),
+                IdRol = rolAdmin.IdRol,
+                IdAreaAsignada = areasTI.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Administrador Principal",
+                Username = "admin",
+                PasswordHash = PasswordHasher.HashPassword("Admin123!"),
+                IdRol = rolAdmin.IdRol,
+                IdAreaAsignada = areasTI.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+
+            // ========== GESTORES (uno por cada área principal) ==========
+            new()
+            {
+                NombreCompleto = "Carlos Méndez",
+                Username = "gestor.ti",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasTI.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Pedro Rodríguez",
+                Username = "gestor.ti2",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasTI.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "María González",
+                Username = "gestor.rrhh",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasRRHH.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Carmen López",
+                Username = "gestor.rrhh2",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasRRHH.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Luis Ramírez",
+                Username = "gestor.logistica",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasLogistica.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Ana Torres",
+                Username = "gestor.contabilidad",
+                PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
+                IdRol = rolGestor.IdRol,
+                IdAreaAsignada = areasContabilidad.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+
+            // ========== SOLICITANTES ==========
+            new()
+            {
+                NombreCompleto = "Juan Pérez",
+                Username = "jperez",
+                PasswordHash = PasswordHasher.HashPassword("User123!"),
+                IdRol = rolSolicitante.IdRol,
+                IdAreaAsignada = areasOperaciones.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Laura Martínez",
+                Username = "lmartinez",
+                PasswordHash = PasswordHasher.HashPassword("User123!"),
+                IdRol = rolSolicitante.IdRol,
+                IdAreaAsignada = areasOperaciones.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Roberto Sánchez",
+                Username = "rsanchez",
+                PasswordHash = PasswordHasher.HashPassword("User123!"),
+                IdRol = rolSolicitante.IdRol,
+                IdAreaAsignada = areasContabilidad.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            },
+            new()
+            {
+                NombreCompleto = "Patricia Flores",
+                Username = "pflores",
+                PasswordHash = PasswordHasher.HashPassword("User123!"),
+                IdRol = rolSolicitante.IdRol,
+                IdAreaAsignada = areasLogistica.IdArea,
+                IdCreadoPor = null,
+                FechaCreacionUsuario = DateTime.UtcNow
+            }
         };
 
-        await context.Usuarios.AddAsync(usuarioAdmin);
+        await context.Usuarios.AddRangeAsync(usuarios);
         await context.SaveChangesAsync();
     }
 
-    private static string HashPassword(string password)
+    private static async Task SeedEncargadosAsync(ApplicationDbContext context)
     {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
+        var areasTI = await context.Areas.FirstAsync(a => a.Nombre == "Tecnología de la Información");
+        var areasRRHH = await context.Areas.FirstAsync(a => a.Nombre == "Recursos Humanos");
+        var areasLogistica = await context.Areas.FirstAsync(a => a.Nombre == "Logística");
+        var areasContabilidad = await context.Areas.FirstAsync(a => a.Nombre == "Contabilidad");
+
+        var gestorTI1 = await context.Usuarios.FirstAsync(u => u.Username == "gestor.ti");
+        var gestorTI2 = await context.Usuarios.FirstAsync(u => u.Username == "gestor.ti2");
+        var gestorRRHH1 = await context.Usuarios.FirstAsync(u => u.Username == "gestor.rrhh");
+        var gestorRRHH2 = await context.Usuarios.FirstAsync(u => u.Username == "gestor.rrhh2");
+        var gestorLogistica = await context.Usuarios.FirstAsync(u => u.Username == "gestor.logistica");
+        var gestorContabilidad = await context.Usuarios.FirstAsync(u => u.Username == "gestor.contabilidad");
+
+        var encargados = new List<Encargado>
+        {
+            new()
+            {
+                IdUsuario = gestorTI1.IdUsuario,
+                IdArea = areasTI.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            },
+            new()
+            {
+                IdUsuario = gestorTI2.IdUsuario,
+                IdArea = areasTI.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            },
+            new()
+            {
+                IdUsuario = gestorRRHH1.IdUsuario,
+                IdArea = areasRRHH.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            },
+            new()
+            {
+                IdUsuario = gestorRRHH2.IdUsuario,
+                IdArea = areasRRHH.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            },
+            new()
+            {
+                IdUsuario = gestorLogistica.IdUsuario,
+                IdArea = areasLogistica.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            },
+            new()
+            {
+                IdUsuario = gestorContabilidad.IdUsuario,
+                IdArea = areasContabilidad.IdArea,
+                Activo = true,
+                FechaAsignacion = DateTime.UtcNow
+            }
+        };
+
+        await context.Encargados.AddRangeAsync(encargados);
+        await context.SaveChangesAsync();
     }
 }

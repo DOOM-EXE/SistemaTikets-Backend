@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Solicitud> Solicitudes { get; set; }
     public DbSet<TrazabilidadSolicitud> TrazabilidadesSolicitud { get; set; }
     public DbSet<Comentario> Comentarios { get; set; }
+    public DbSet<Encargado> Encargados { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -211,6 +212,30 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.Comentarios)
                 .HasForeignKey(e => e.IdUsuario)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configuracion de Encargado
+        modelBuilder.Entity<Encargado>(entity =>
+        {
+            entity.ToTable("encargados");
+            entity.HasKey(e => e.IdEncargado);
+            entity.Property(e => e.IdEncargado).HasColumnName("id_encargado");
+            entity.Property(e => e.IdUsuario).HasColumnName("id_usuario");
+            entity.Property(e => e.IdArea).HasColumnName("id_area");
+            entity.Property(e => e.FechaAsignacion).HasColumnName("fecha_asignacion").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true);
+
+            entity.HasIndex(e => new { e.IdUsuario, e.IdArea }).IsUnique();
+
+            entity.HasOne(e => e.Usuario)
+                .WithMany(u => u.EncargadosDeAreas)
+                .HasForeignKey(e => e.IdUsuario)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Area)
+                .WithMany(a => a.Encargados)
+                .HasForeignKey(e => e.IdArea)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

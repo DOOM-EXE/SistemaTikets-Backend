@@ -160,7 +160,7 @@ public class SolicitudesController : ControllerBase
     }
 
     [HttpPost("{id}/asignar-gestor")]
-    [Authorize(Roles = "Admin")]
+    [Authorize] // Permitir a usuarios autenticados, validación de permisos en service
     public async Task<IActionResult> AsignarGestor(int id, [FromBody] AsignarGestorRequest request)
     {
         try

@@ -27,17 +27,23 @@ public class SolicitudService : ISolicitudService
     private readonly ITrazabilidadRepository _trazabilidadRepository;
     private readonly IComentarioRepository _comentarioRepository;
     private readonly IEstadoRepository _estadoRepository;
+    private readonly IEncargadoRepository _encargadoRepository;
+    private readonly IUsuarioRepository _usuarioRepository;
 
     public SolicitudService(
         ISolicitudRepository solicitudRepository,
         ITrazabilidadRepository trazabilidadRepository,
         IComentarioRepository comentarioRepository,
-        IEstadoRepository estadoRepository)
+        IEstadoRepository estadoRepository,
+        IEncargadoRepository encargadoRepository,
+        IUsuarioRepository usuarioRepository)
     {
         _solicitudRepository = solicitudRepository;
         _trazabilidadRepository = trazabilidadRepository;
         _comentarioRepository = comentarioRepository;
         _estadoRepository = estadoRepository;
+        _encargadoRepository = encargadoRepository;
+        _usuarioRepository = usuarioRepository;
     }
 
     public async Task<IEnumerable<SolicitudDto>> GetAllAsync()
@@ -179,26 +185,13 @@ public class SolicitudService : ISolicitudService
 
         await _solicitudRepository.UpdateAsync(solicitud);
 
-        var estadoNuevo = await _estadoRepository.GetByIdAsync(request.IdEstado);
-
-        // Registrar trazabilidad
-        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
-        {
-            IdSolicitud = solicitud.IdSolicitud,
-            IdUsuarioActor = idUsuario,
-            Accion = "CAMBIO_ESTADO",
-            Descripcion = $"Estado cambiado de '{estadoAnterior}' a '{estadoNuevo?.Nombre}'",
-            FechaEvento = DateTime.UtcNow
-        });
-
-        // Agregar comentario si se proporcion�
         if (!string.IsNullOrWhiteSpace(request.Comentario))
         {
             await _comentarioRepository.AddAsync(new Comentario
             {
                 IdSolicitud = solicitud.IdSolicitud,
                 IdUsuario = idUsuario,
-                Texto = request.Comentario,
+                Texto = $"Observación al cambiar estado: {request.Comentario}",
                 FechaComentario = DateTime.UtcNow
             });
         }
@@ -210,20 +203,106 @@ public class SolicitudService : ISolicitudService
         if (solicitud == null)
             throw new InvalidOperationException("Solicitud no encontrada");
 
+        // Obtener usuario que asigna
+        var usuarioAsignador = await _usuarioRepository.GetByIdAsync(idAsignadoPor);
+        if (usuarioAsignador == null)
+            throw new InvalidOperationException("Usuario asignador no encontrado");
+
+        // Validar permisos: 
+        // 1. Admins pueden asignar a cualquiera
+        // 2. Gestores con encargado activo pueden asignar solo a gestores de su área
+        bool esAdmin = usuarioAsignador.IdRol == 1;
+        bool esEncargadoActivo = await _encargadoRepository.EsEncargadoDeAreaAsync(idAsignadoPor, solicitud.IdArea);
+
+        // Si NO es Admin Y NO es Encargado activo → No puede asignar
+        if (!esAdmin && !esEncargadoActivo)
+        {
+            throw new InvalidOperationException("No tiene permisos para asignar solicitudes. Solo los administradores y los encargados activos pueden asignar solicitudes a otros gestores.");
+        }
+
+        // Si es Encargado (no Admin), validar que asigna a gestor de su área
+        if (!esAdmin && esEncargadoActivo)
+        {
+            // Validar que el gestor al que se asigna pertenece al área
+            var gestorDestino = await _usuarioRepository.GetByIdAsync(request.IdGestor);
+            if (gestorDestino == null)
+                throw new InvalidOperationException("Gestor destino no encontrado");
+
+            if (gestorDestino.IdAreaAsignada != solicitud.IdArea)
+                throw new InvalidOperationException("El gestor no pertenece al área de la solicitud");
+
+            if (gestorDestino.IdRol != 2) // Validar que es gestor (rol 2)
+                throw new InvalidOperationException("Solo se puede asignar a usuarios con rol Gestor");
+        }
+
+        // Guardar gestor anterior para detectar reasignación
+        var idGestorAnterior = solicitud.IdGestorAsignado;
+        var nombreGestorAnterior = string.Empty;
+        if (idGestorAnterior.HasValue)
+        {
+            var gestorAnterior = await _usuarioRepository.GetByIdAsync(idGestorAnterior.Value);
+            nombreGestorAnterior = gestorAnterior?.NombreCompleto ?? "Desconocido";
+        }
+
         solicitud.IdGestorAsignado = request.IdGestor;
         solicitud.IdAsignadoPor = idAsignadoPor;
         solicitud.FechaAsignacion = DateTime.UtcNow;
 
         await _solicitudRepository.UpdateAsync(solicitud);
 
-        // Registrar trazabilidad
-        var gestor = await _solicitudRepository.GetByIdAsync(id);
+        // Registrar trazabilidad con distinción de quien asigna
+        var gestor = await _usuarioRepository.GetByIdAsync(request.IdGestor);
+        var nombreAsignador = usuarioAsignador.NombreCompleto;
+        var nombreGestor = gestor?.NombreCompleto ?? "Desconocido";
+
+        string accion;
+        string descripcion;
+        bool esReasignacion = idGestorAnterior.HasValue;
+
+        // Determinar el tipo de asignación según el rol del usuario
+        if (esAdmin) // Admin
+        {
+            accion = "ASIGNACION_POR_ADMIN";
+            if (esReasignacion)
+            {
+                descripcion = $"Administrador {nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"Administrador {nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+        else if (esEncargadoActivo) // Encargado/Supervisor
+        {
+            accion = "ASIGNACION_POR_SUPERVISOR";
+            if (esReasignacion)
+            {
+                descripcion = $"Supervisor {nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"Supervisor {nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+        else // Caso genérico (no debería llegar aquí por las validaciones, pero por seguridad)
+        {
+            accion = "ASIGNACION";
+            if (esReasignacion)
+            {
+                descripcion = $"{nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"{nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+
         await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
         {
             IdSolicitud = solicitud.IdSolicitud,
             IdUsuarioActor = idAsignadoPor,
-            Accion = "ASIGNACION",
-            Descripcion = $"Asignado a {gestor?.GestorAsignado?.NombreCompleto}",
+            Accion = accion,
+            Descripcion = descripcion,
             FechaEvento = DateTime.UtcNow
         });
     }
@@ -234,19 +313,24 @@ public class SolicitudService : ISolicitudService
         if (solicitud == null)
             throw new InvalidOperationException("Solicitud no encontrada");
 
+        // Obtener datos del gestor
+        var gestor = await _usuarioRepository.GetByIdAsync(idGestor);
+        if (gestor == null)
+            throw new InvalidOperationException("Gestor no encontrado");
+
         solicitud.IdGestorAsignado = idGestor;
         solicitud.IdAsignadoPor = idGestor; // El mismo gestor se asigna
         solicitud.FechaAsignacion = DateTime.UtcNow;
 
         await _solicitudRepository.UpdateAsync(solicitud);
 
-        // Registrar trazabilidad
+        // Registrar trazabilidad con descripción específica para auto-asignación
         await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
         {
             IdSolicitud = solicitud.IdSolicitud,
             IdUsuarioActor = idGestor,
             Accion = "TOMAR_SOLICITUD",
-            Descripcion = "Gestor toma la solicitud",
+            Descripcion = $"El gestor {gestor.NombreCompleto} tomó la solicitud",
             FechaEvento = DateTime.UtcNow
         });
     }

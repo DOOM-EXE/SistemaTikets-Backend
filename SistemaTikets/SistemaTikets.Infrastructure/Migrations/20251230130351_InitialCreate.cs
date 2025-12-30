@@ -122,6 +122,34 @@ namespace SistemaTikets.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "encargados",
+                columns: table => new
+                {
+                    id_encargado = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id_usuario = table.Column<int>(type: "integer", nullable: false),
+                    id_area = table.Column<int>(type: "integer", nullable: false),
+                    fecha_asignacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    activo = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_encargados", x => x.id_encargado);
+                    table.ForeignKey(
+                        name: "FK_encargados_areas_id_area",
+                        column: x => x.id_area,
+                        principalTable: "areas",
+                        principalColumn: "id_area",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_encargados_usuarios_id_usuario",
+                        column: x => x.id_usuario,
+                        principalTable: "usuarios",
+                        principalColumn: "id_usuario",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "solicitudes",
                 columns: table => new
                 {
@@ -262,6 +290,17 @@ namespace SistemaTikets.Infrastructure.Migrations
                 column: "id_usuario");
 
             migrationBuilder.CreateIndex(
+                name: "IX_encargados_id_area",
+                table: "encargados",
+                column: "id_area");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_encargados_id_usuario_id_area",
+                table: "encargados",
+                columns: new[] { "id_usuario", "id_area" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_estados_nombre",
                 table: "estados",
                 column: "nombre",
@@ -362,6 +401,9 @@ namespace SistemaTikets.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "comentarios");
+
+            migrationBuilder.DropTable(
+                name: "encargados");
 
             migrationBuilder.DropTable(
                 name: "trazabilidad_solicitudes");

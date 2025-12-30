@@ -12,7 +12,7 @@ using SistemaTikets.Infrastructure.Persistence;
 namespace SistemaTikets.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251227000511_InitialCreate")]
+    [Migration("20251230130351_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -83,6 +83,45 @@ namespace SistemaTikets.Infrastructure.Migrations
                     b.HasIndex("IdUsuario");
 
                     b.ToTable("comentarios", (string)null);
+                });
+
+            modelBuilder.Entity("SistemaTikets.Domain.Entities.Encargado", b =>
+                {
+                    b.Property<int>("IdEncargado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id_encargado");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdEncargado"));
+
+                    b.Property<bool>("Activo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("activo");
+
+                    b.Property<DateTime>("FechaAsignacion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_asignacion")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("IdArea")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_area");
+
+                    b.Property<int>("IdUsuario")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_usuario");
+
+                    b.HasKey("IdEncargado");
+
+                    b.HasIndex("IdArea");
+
+                    b.HasIndex("IdUsuario", "IdArea")
+                        .IsUnique();
+
+                    b.ToTable("encargados", (string)null);
                 });
 
             modelBuilder.Entity("SistemaTikets.Domain.Entities.Estado", b =>
@@ -390,6 +429,25 @@ namespace SistemaTikets.Infrastructure.Migrations
                     b.Navigation("Usuario");
                 });
 
+            modelBuilder.Entity("SistemaTikets.Domain.Entities.Encargado", b =>
+                {
+                    b.HasOne("SistemaTikets.Domain.Entities.Area", "Area")
+                        .WithMany("Encargados")
+                        .HasForeignKey("IdArea")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SistemaTikets.Domain.Entities.Usuario", "Usuario")
+                        .WithMany("EncargadosDeAreas")
+                        .HasForeignKey("IdUsuario")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Area");
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("SistemaTikets.Domain.Entities.Solicitud", b =>
                 {
                     b.HasOne("SistemaTikets.Domain.Entities.Area", "Area")
@@ -503,6 +561,8 @@ namespace SistemaTikets.Infrastructure.Migrations
 
             modelBuilder.Entity("SistemaTikets.Domain.Entities.Area", b =>
                 {
+                    b.Navigation("Encargados");
+
                     b.Navigation("Solicitudes");
 
                     b.Navigation("TiposSolicitud");
@@ -540,6 +600,8 @@ namespace SistemaTikets.Infrastructure.Migrations
             modelBuilder.Entity("SistemaTikets.Domain.Entities.Usuario", b =>
                 {
                     b.Navigation("Comentarios");
+
+                    b.Navigation("EncargadosDeAreas");
 
                     b.Navigation("SolicitudesAsignadas");
 

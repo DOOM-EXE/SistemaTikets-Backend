@@ -8,4 +8,5 @@ public class Area
     public ICollection<TipoSolicitud> TiposSolicitud { get; set; } = new List<TipoSolicitud>();
     public ICollection<Usuario> UsuariosAsignados { get; set; } = new List<Usuario>();
     public ICollection<Solicitud> Solicitudes { get; set; } = new List<Solicitud>();
+    public ICollection<Encargado> Encargados { get; set; } = new List<Encargado>();
 }
