@@ -97,15 +97,19 @@ public class SolicitudService : ISolicitudService
                 Accion = t.Accion,
                 Descripcion = t.Descripcion,
                 FechaEvento = t.FechaEvento,
-                NombreUsuario = t.UsuarioActor?.NombreCompleto
+                NombreUsuario = t.UsuarioActor?.NombreCompleto,
+                RolUsuario = t.UsuarioActor?.Rol?.Nombre,
+                EsEncargado = t.UsuarioActor?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
             }).ToList(),
             Comentarios = comentarios.Select(c => new ComentarioDto
             {
                 IdComentario = c.IdComentario,
                 Texto = c.Texto,
                 FechaComentario = c.FechaComentario,
-                IdUsuario = c.IdUsuario,
-                NombreUsuario = c.Usuario.NombreCompleto
+                IdUsuario = c.IdUsuario ?? 0,
+                NombreUsuario = c.Usuario?.NombreCompleto ?? "(Usuario eliminado)",
+                RolUsuario = c.Usuario?.Rol?.Nombre,
+                EsEncargado = c.Usuario?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
             }).ToList()
         };
     }
@@ -171,7 +175,12 @@ public class SolicitudService : ISolicitudService
             FechaEvento = DateTime.UtcNow
         });
 
-        return MapToDto(new[] { solicitud }).First();
+        // Recargar la solicitud con todas sus relaciones para evitar NullReferenceException
+        var solicitudActualizada = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitudActualizada == null)
+            throw new InvalidOperationException("Error al recargar la solicitud actualizada");
+
+        return MapToDto(new[] { solicitudActualizada }).First();
     }
 
     public async Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario)
@@ -180,11 +189,35 @@ public class SolicitudService : ISolicitudService
         if (solicitud == null)
             throw new InvalidOperationException("Solicitud no encontrada");
 
-        var estadoAnterior = solicitud.Estado.Nombre;
-        solicitud.IdEstado = request.IdEstado;
+        // Obtener usuario que realiza el cambio
+        var usuario = await _usuarioRepository.GetByIdAsync(idUsuario);
+        if (usuario == null)
+            throw new InvalidOperationException("Usuario no encontrado");
 
+        // Guardar estado anterior
+        var estadoAnterior = solicitud.Estado.Nombre;
+        
+        // Cambiar el estado
+        solicitud.IdEstado = request.IdEstado;
         await _solicitudRepository.UpdateAsync(solicitud);
 
+        // Obtener el nombre del nuevo estado
+        var nuevoEstado = await _estadoRepository.GetByIdAsync(request.IdEstado);
+        var nombreNuevoEstado = nuevoEstado?.Nombre ?? "Desconocido";
+
+        // Registrar trazabilidad del cambio de estado
+        var descripcion = $"{usuario.NombreCompleto} cambió el estado de '{estadoAnterior}' a '{nombreNuevoEstado}'";
+        
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = solicitud.IdSolicitud,
+            IdUsuarioActor = idUsuario,
+            Accion = "CAMBIO_ESTADO",
+            Descripcion = descripcion,
+            FechaEvento = DateTime.UtcNow
+        });
+
+        // Agregar comentario adicional si viene uno
         if (!string.IsNullOrWhiteSpace(request.Comentario))
         {
             await _comentarioRepository.AddAsync(new Comentario
@@ -350,8 +383,8 @@ public class SolicitudService : ISolicitudService
             Descripcion = s.Descripcion,
             ArchivoUrl = s.ArchivoUrl,
             FechaCreacion = s.FechaCreacion,
-            IdSolicitante = s.IdSolicitante,
-            NombreSolicitante = s.Solicitante.NombreCompleto,
+            IdSolicitante = s.IdSolicitante ?? 0,
+            NombreSolicitante = s.Solicitante?.NombreCompleto ?? "(Usuario eliminado)",
             IdArea = s.IdArea,
             NombreArea = s.Area.Nombre,
             IdTipoSolicitud = s.IdTipoSolicitud,

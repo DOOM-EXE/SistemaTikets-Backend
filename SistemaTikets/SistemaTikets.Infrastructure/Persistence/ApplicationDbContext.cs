@@ -108,7 +108,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.CreadoPor)
                 .WithMany(u => u.UsuariosCreados)
                 .HasForeignKey(e => e.IdCreadoPor)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Configuracion de Solicitud
@@ -136,7 +136,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Solicitante)
                 .WithMany(u => u.SolicitudesCreadas)
                 .HasForeignKey(e => e.IdSolicitante)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.Area)
                 .WithMany(a => a.Solicitudes)
@@ -161,12 +161,12 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.GestorAsignado)
                 .WithMany(u => u.SolicitudesAsignadas)
                 .HasForeignKey(e => e.IdGestorAsignado)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.AsignadoPor)
                 .WithMany(u => u.SolicitudesAsignadasPor)
                 .HasForeignKey(e => e.IdAsignadoPor)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Configuracion de TrazabilidadSolicitud
@@ -189,7 +189,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.UsuarioActor)
                 .WithMany(u => u.Trazabilidades)
                 .HasForeignKey(e => e.IdUsuarioActor)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Configuracion de Comentario
@@ -211,7 +211,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Usuario)
                 .WithMany(u => u.Comentarios)
                 .HasForeignKey(e => e.IdUsuario)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Configuracion de Encargado

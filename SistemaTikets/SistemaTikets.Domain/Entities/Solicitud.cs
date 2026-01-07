@@ -9,7 +9,7 @@ public class Solicitud
     public string? ArchivoUrl { get; set; }
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
-    public int IdSolicitante { get; set; }
+    public int? IdSolicitante { get; set; }
     public int IdArea { get; set; }
     public int IdTipoSolicitud { get; set; }
     public int IdPrioridad { get; set; }
@@ -19,7 +19,7 @@ public class Solicitud
     public int? IdAsignadoPor { get; set; }
     public DateTime? FechaAsignacion { get; set; }
 
-    public Usuario Solicitante { get; set; } = null!;
+    public Usuario? Solicitante { get; set; }
     public Area Area { get; set; } = null!;
     public TipoSolicitud TipoSolicitud { get; set; } = null!;
     public Prioridad Prioridad { get; set; } = null!;

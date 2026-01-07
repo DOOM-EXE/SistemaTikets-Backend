@@ -18,15 +18,18 @@ public class UsuarioService : IUsuarioService
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IRolRepository _rolRepository;
     private readonly IAreaRepository _areaRepository;
+    private readonly ISolicitudRepository _solicitudRepository;
 
     public UsuarioService(
         IUsuarioRepository usuarioRepository,
         IRolRepository rolRepository,
-        IAreaRepository areaRepository)
+        IAreaRepository areaRepository,
+        ISolicitudRepository solicitudRepository)
     {
         _usuarioRepository = usuarioRepository;
         _rolRepository = rolRepository;
         _areaRepository = areaRepository;
+        _solicitudRepository = solicitudRepository;
     }
 
     public async Task<IEnumerable<UsuarioDto>> GetAllAsync()
@@ -151,6 +154,34 @@ public class UsuarioService : IUsuarioService
 
     public async Task DeleteAsync(int id)
     {
+        var usuario = await _usuarioRepository.GetByIdAsync(id);
+        if (usuario == null)
+            throw new InvalidOperationException("Usuario no encontrado");
+
+        // Validar que NO tenga solicitudes ACTIVAS como solicitante
+        // Solo bloquear si tiene solicitudes en estado "Nueva" (1) o "En Progreso" (2)
+        var solicitudesComoSolicitante = await _solicitudRepository.GetBySolicitanteAsync(id);
+        var solicitudesActivas = solicitudesComoSolicitante
+            .Where(s => s.IdEstado == 1 || s.IdEstado == 2);
+        
+        if (solicitudesActivas.Any())
+        {
+            var listaSolicitudes = string.Join(", ", solicitudesActivas.Select(s => s.Codigo));
+            throw new InvalidOperationException(
+                $"No se puede eliminar el usuario porque tiene {solicitudesActivas.Count()} solicitud(es) activa(s) " +
+                $"como solicitante: {listaSolicitudes}. " +
+                "Las solicitudes deben estar en estado Resuelta, Cerrada o Cancelada para poder eliminar el usuario."
+            );
+        }
+
+        // ✅ Si llega aquí, puede eliminar:
+        // - No tiene solicitudes activas (puede tener cerradas/resueltas/canceladas)
+        // - Sus solicitudes antiguas quedarán con id_solicitante = NULL
+        // - Sus comentarios quedarán con id_usuario = NULL
+        // - Sus trazabilidades quedarán con id_usuario_actor = NULL
+        // - Sus asignaciones como gestor quedarán en NULL
+        // - Sus encargados se eliminarán (Cascade)
+        
         await _usuarioRepository.DeleteAsync(id);
     }
 

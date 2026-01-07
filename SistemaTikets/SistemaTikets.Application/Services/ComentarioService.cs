@@ -34,8 +34,10 @@ public class ComentarioService : IComentarioService
             IdComentario = c.IdComentario,
             Texto = c.Texto,
             FechaComentario = c.FechaComentario,
-            IdUsuario = c.IdUsuario,
-            NombreUsuario = c.Usuario.NombreCompleto
+            IdUsuario = c.IdUsuario ?? 0,
+            NombreUsuario = c.Usuario?.NombreCompleto ?? "(Usuario eliminado)",
+            RolUsuario = c.Usuario?.Rol?.Nombre,
+            EsEncargado = c.Usuario?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
         });
     }
 
@@ -57,8 +59,10 @@ public class ComentarioService : IComentarioService
             IdComentario = created.IdComentario,
             Texto = created.Texto,
             FechaComentario = created.FechaComentario,
-            IdUsuario = created.IdUsuario,
-            NombreUsuario = usuario?.NombreCompleto ?? string.Empty
+            IdUsuario = created.IdUsuario ?? 0,
+            NombreUsuario = usuario?.NombreCompleto ?? "(Usuario eliminado)",
+            RolUsuario = usuario?.Rol?.Nombre,
+            EsEncargado = usuario?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
         };
     }
 

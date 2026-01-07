@@ -43,8 +43,12 @@ public class ArchivosController : ControllerBase
             var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "solicitudes");
             Directory.CreateDirectory(uploadsFolder);
 
-            // Generar nombre único
-            var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+            // Generar nombre con timestamp corto + nombre original
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+            // Limpiar caracteres no válidos del nombre original
+            var cleanFileName = string.Join("_", originalFileName.Split(Path.GetInvalidFileNameChars()));
+            var uniqueFileName = $"{timestamp}_{cleanFileName}{extension}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
             // Guardar archivo

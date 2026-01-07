@@ -18,6 +18,9 @@ public class TrazabilidadRepository : ITrazabilidadRepository
     {
         return await _context.TrazabilidadesSolicitud
             .Include(t => t.UsuarioActor)
+                .ThenInclude(u => u.Rol)
+            .Include(t => t.UsuarioActor)
+                .ThenInclude(u => u.EncargadosDeAreas)
             .Where(t => t.IdSolicitud == idSolicitud)
             .OrderBy(t => t.FechaEvento)
             .ToListAsync();

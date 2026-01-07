@@ -19,6 +19,9 @@ public class ComentarioRepository : IComentarioRepository
     {
         return await _context.Comentarios
             .Include(c => c.Usuario)
+                .ThenInclude(u => u.Rol)
+            .Include(c => c.Usuario)
+                .ThenInclude(u => u.EncargadosDeAreas)
             .Where(c => c.IdSolicitud == idSolicitud)
             .OrderBy(c => c.FechaComentario)
             .ToListAsync();

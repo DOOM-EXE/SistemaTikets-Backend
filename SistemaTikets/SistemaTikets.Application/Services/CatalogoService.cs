@@ -47,19 +47,22 @@ public class CatalogoService : ICatalogoService
     private readonly IPrioridadRepository _prioridadRepository;
     private readonly IEstadoRepository _estadoRepository;
     private readonly IRolRepository _rolRepository;
+    private readonly ISolicitudRepository _solicitudRepository;
 
     public CatalogoService(
         IAreaRepository areaRepository,
         ITipoSolicitudRepository tipoSolicitudRepository,
         IPrioridadRepository prioridadRepository,
         IEstadoRepository estadoRepository,
-        IRolRepository rolRepository)
+        IRolRepository rolRepository,
+        ISolicitudRepository solicitudRepository)
     {
         _areaRepository = areaRepository;
         _tipoSolicitudRepository = tipoSolicitudRepository;
         _prioridadRepository = prioridadRepository;
         _estadoRepository = estadoRepository;
         _rolRepository = rolRepository;
+        _solicitudRepository = solicitudRepository;
     }
 
     // AREAS
@@ -86,7 +89,7 @@ public class CatalogoService : ICatalogoService
     {
         var area = await _areaRepository.GetByIdAsync(id);
         if (area == null)
-            throw new InvalidOperationException("�rea no encontrada");
+            throw new InvalidOperationException("Área no encontrada");
 
         area.Nombre = request.Nombre;
         await _areaRepository.UpdateAsync(area);
@@ -95,6 +98,11 @@ public class CatalogoService : ICatalogoService
 
     public async Task DeleteAreaAsync(int id)
     {
+        // Verificar si hay solicitudes usando esta área
+        var solicitudes = await _solicitudRepository.GetByAreaAsync(id);
+        if (solicitudes.Any())
+            throw new InvalidOperationException("No se puede eliminar el área porque tiene solicitudes asociadas");
+
         await _areaRepository.DeleteAsync(id);
     }
 
@@ -172,6 +180,15 @@ public class CatalogoService : ICatalogoService
 
     public async Task DeleteTipoSolicitudAsync(int id)
     {
+        // Verificar si hay solicitudes usando este tipo
+        var tipoSolicitud = await _tipoSolicitudRepository.GetByIdAsync(id);
+        if (tipoSolicitud == null)
+            throw new InvalidOperationException("Tipo de solicitud no encontrado");
+
+        var solicitudes = await _solicitudRepository.GetAllAsync();
+        if (solicitudes.Any(s => s.IdTipoSolicitud == id))
+            throw new InvalidOperationException("No se puede eliminar el tipo de solicitud porque tiene solicitudes asociadas");
+
         await _tipoSolicitudRepository.DeleteAsync(id);
     }
 
@@ -208,6 +225,11 @@ public class CatalogoService : ICatalogoService
 
     public async Task DeletePrioridadAsync(int id)
     {
+        // Verificar si hay solicitudes usando esta prioridad
+        var solicitudes = await _solicitudRepository.GetAllAsync();
+        if (solicitudes.Any(s => s.IdPrioridad == id))
+            throw new InvalidOperationException("No se puede eliminar la prioridad porque tiene solicitudes asociadas");
+
         await _prioridadRepository.DeleteAsync(id);
     }
 
@@ -244,6 +266,11 @@ public class CatalogoService : ICatalogoService
 
     public async Task DeleteEstadoAsync(int id)
     {
+        // Verificar si hay solicitudes usando este estado
+        var solicitudes = await _solicitudRepository.GetAllAsync();
+        if (solicitudes.Any(s => s.IdEstado == id))
+            throw new InvalidOperationException("No se puede eliminar el estado porque tiene solicitudes asociadas");
+
         await _estadoRepository.DeleteAsync(id);
     }
 

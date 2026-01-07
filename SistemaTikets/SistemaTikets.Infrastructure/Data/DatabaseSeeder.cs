@@ -12,7 +12,7 @@ public static class DatabaseSeeder
         // Verificar si ya hay datos en las tablas principales
         if (await context.Roles.AnyAsync())
         {
-            return; // Ya hay datos, no hacer seeding
+            return;
         }
 
         await SeedRolesAsync(context);
@@ -165,7 +165,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Admin123!"),
                 IdRol = rolAdmin.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
 
@@ -177,7 +177,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -187,7 +187,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -197,7 +197,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasRRHH.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -207,7 +207,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasRRHH.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -217,7 +217,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasLogistica.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -227,7 +227,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("Gestor123!"),
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasContabilidad.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
 
@@ -239,7 +239,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("User123!"),
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasOperaciones.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -249,7 +249,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("User123!"),
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasOperaciones.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -259,7 +259,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("User123!"),
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasContabilidad.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             },
             new()
@@ -269,7 +269,7 @@ public static class DatabaseSeeder
                 PasswordHash = PasswordHasher.HashPassword("User123!"),
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasLogistica.IdArea,
-                IdCreadoPor = null,
+                IdCreadoPor = 1,
                 FechaCreacionUsuario = DateTime.UtcNow
             }
         };

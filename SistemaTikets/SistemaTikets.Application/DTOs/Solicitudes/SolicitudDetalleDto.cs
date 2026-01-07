@@ -14,6 +14,8 @@ public class TrazabilidadDto
     public string Descripcion { get; set; } = string.Empty;
     public DateTime FechaEvento { get; set; }
     public string? NombreUsuario { get; set; }
+    public string? RolUsuario { get; set; }
+    public bool? EsEncargado { get; set; }
 }
 
 public class ComentarioDto
@@ -23,4 +25,6 @@ public class ComentarioDto
     public DateTime FechaComentario { get; set; }
     public int IdUsuario { get; set; }
     public string NombreUsuario { get; set; } = string.Empty;
+    public string? RolUsuario { get; set; }
+    public bool? EsEncargado { get; set; }
 }
