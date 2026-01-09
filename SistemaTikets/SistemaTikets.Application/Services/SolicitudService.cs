@@ -1,0 +1,401 @@
+﻿using SistemaTikets.Application.DTOs.Solicitudes;
+using SistemaTikets.Domain.Entities;
+using SistemaTikets.Domain.Interfaces;
+
+
+namespace SistemaTikets.Application.Services;
+
+public interface ISolicitudService
+{
+    Task<IEnumerable<SolicitudDto>> GetAllAsync();
+    Task<IEnumerable<SolicitudDto>> GetByFiltrosAsync(int? idEstado, int? idArea, int? idPrioridad, DateTime? fechaDesde, DateTime? fechaHasta, string? busqueda);
+    Task<IEnumerable<SolicitudDto>> GetBySolicitanteAsync(int idSolicitante);
+    Task<IEnumerable<SolicitudDto>> GetByGestorAsync(int idGestor);
+    Task<IEnumerable<SolicitudDto>> GetByAreaAsync(int idArea);
+    Task<SolicitudDetalleDto?> GetDetalleAsync(int id);
+    Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante);
+    Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario);
+    Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario);
+    Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor);
+    Task TomarSolicitudAsync(int id, int idGestor);
+    Task DeleteAsync(int id);
+}
+
+public class SolicitudService : ISolicitudService
+{
+    private readonly ISolicitudRepository _solicitudRepository;
+    private readonly ITrazabilidadRepository _trazabilidadRepository;
+    private readonly IComentarioRepository _comentarioRepository;
+    private readonly IEstadoRepository _estadoRepository;
+    private readonly IEncargadoRepository _encargadoRepository;
+    private readonly IUsuarioRepository _usuarioRepository;
+
+    public SolicitudService(
+        ISolicitudRepository solicitudRepository,
+        ITrazabilidadRepository trazabilidadRepository,
+        IComentarioRepository comentarioRepository,
+        IEstadoRepository estadoRepository,
+        IEncargadoRepository encargadoRepository,
+        IUsuarioRepository usuarioRepository)
+    {
+        _solicitudRepository = solicitudRepository;
+        _trazabilidadRepository = trazabilidadRepository;
+        _comentarioRepository = comentarioRepository;
+        _estadoRepository = estadoRepository;
+        _encargadoRepository = encargadoRepository;
+        _usuarioRepository = usuarioRepository;
+    }
+
+    public async Task<IEnumerable<SolicitudDto>> GetAllAsync()
+    {
+        var solicitudes = await _solicitudRepository.GetAllAsync();
+        return MapToDto(solicitudes);
+    }
+
+    public async Task<IEnumerable<SolicitudDto>> GetByFiltrosAsync(
+        int? idEstado, int? idArea, int? idPrioridad,
+        DateTime? fechaDesde, DateTime? fechaHasta, string? busqueda)
+    {
+        var solicitudes = await _solicitudRepository.GetByFiltrosAsync(
+            idEstado, idArea, idPrioridad, fechaDesde, fechaHasta, busqueda);
+        return MapToDto(solicitudes);
+    }
+
+    public async Task<IEnumerable<SolicitudDto>> GetBySolicitanteAsync(int idSolicitante)
+    {
+        var solicitudes = await _solicitudRepository.GetBySolicitanteAsync(idSolicitante);
+        return MapToDto(solicitudes);
+    }
+
+    public async Task<IEnumerable<SolicitudDto>> GetByGestorAsync(int idGestor)
+    {
+        var solicitudes = await _solicitudRepository.GetByGestorAsync(idGestor);
+        return MapToDto(solicitudes);
+    }
+
+    public async Task<IEnumerable<SolicitudDto>> GetByAreaAsync(int idArea)
+    {
+        var solicitudes = await _solicitudRepository.GetByAreaAsync(idArea);
+        return MapToDto(solicitudes);
+    }
+
+    public async Task<SolicitudDetalleDto?> GetDetalleAsync(int id)
+    {
+        var solicitud = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitud == null)
+            return null;
+
+        var trazabilidad = await _trazabilidadRepository.GetBySolicitudAsync(id);
+        var comentarios = await _comentarioRepository.GetBySolicitudAsync(id);
+
+        return new SolicitudDetalleDto
+        {
+            Solicitud = MapToDto(new[] { solicitud }).First(),
+            Trazabilidad = trazabilidad.Select(t => new TrazabilidadDto
+            {
+                IdTrazabilidad = t.IdTrazabilidad,
+                Accion = t.Accion,
+                Descripcion = t.Descripcion,
+                FechaEvento = t.FechaEvento,
+                NombreUsuario = t.UsuarioActor?.NombreCompleto,
+                RolUsuario = t.UsuarioActor?.Rol?.Nombre,
+                EsEncargado = t.UsuarioActor?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
+            }).ToList(),
+            Comentarios = comentarios.Select(c => new ComentarioDto
+            {
+                IdComentario = c.IdComentario,
+                Texto = c.Texto,
+                FechaComentario = c.FechaComentario,
+                IdUsuario = c.IdUsuario ?? 0,
+                NombreUsuario = c.Usuario?.NombreCompleto ?? "(Usuario eliminado)",
+                RolUsuario = c.Usuario?.Rol?.Nombre,
+                EsEncargado = c.Usuario?.EncargadosDeAreas?.Any(e => e.Activo) ?? false
+            }).ToList()
+        };
+    }
+
+    public async Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante)
+    {
+        // Obtener el estado "Nueva" (asumimos que tiene ID 1)
+        var estadoNueva = await _estadoRepository.GetByIdAsync(1);
+        if (estadoNueva == null)
+            throw new InvalidOperationException("Estado 'Nueva' no encontrado");
+
+        var solicitud = new Solicitud
+        {
+            Asunto = request.Asunto,
+            Descripcion = request.Descripcion,
+            ArchivoUrl = request.ArchivoUrl,
+            IdSolicitante = idSolicitante,
+            IdArea = request.IdArea,
+            IdTipoSolicitud = request.IdTipoSolicitud,
+            IdPrioridad = request.IdPrioridad,
+            IdEstado = 1, // Nueva
+            FechaCreacion = DateTime.UtcNow
+        };
+
+        var created = await _solicitudRepository.AddAsync(solicitud);
+
+        // Registrar trazabilidad
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = created.IdSolicitud,
+            IdUsuarioActor = idSolicitante,
+            Accion = "CREACION",
+            Descripcion = $"Solicitud creada: {created.Asunto}",
+            FechaEvento = DateTime.UtcNow
+        });
+
+        return MapToDto(new[] { created }).First();
+    }
+
+    public async Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario)
+    {
+        var solicitud = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitud == null)
+            throw new InvalidOperationException("Solicitud no encontrada");
+
+        // Validar que solo se puede editar si esta en estado "Nueva"
+        if (solicitud.IdEstado != 1)
+            throw new InvalidOperationException("Solo se puede editar una solicitud en estado 'Nueva'");
+
+        solicitud.Asunto = request.Asunto;
+        solicitud.Descripcion = request.Descripcion;
+        solicitud.IdPrioridad = request.IdPrioridad;
+
+        await _solicitudRepository.UpdateAsync(solicitud);
+
+        // Registrar trazabilidad
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = solicitud.IdSolicitud,
+            IdUsuarioActor = idUsuario,
+            Accion = "EDICION",
+            Descripcion = "Solicitud editada",
+            FechaEvento = DateTime.UtcNow
+        });
+
+        // Recargar la solicitud con todas sus relaciones para evitar NullReferenceException
+        var solicitudActualizada = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitudActualizada == null)
+            throw new InvalidOperationException("Error al recargar la solicitud actualizada");
+
+        return MapToDto(new[] { solicitudActualizada }).First();
+    }
+
+    public async Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario)
+    {
+        var solicitud = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitud == null)
+            throw new InvalidOperationException("Solicitud no encontrada");
+
+        // Obtener usuario que realiza el cambio
+        var usuario = await _usuarioRepository.GetByIdAsync(idUsuario);
+        if (usuario == null)
+            throw new InvalidOperationException("Usuario no encontrado");
+
+        // Guardar estado anterior
+        var estadoAnterior = solicitud.Estado.Nombre;
+        
+        // Cambiar el estado
+        solicitud.IdEstado = request.IdEstado;
+        await _solicitudRepository.UpdateAsync(solicitud);
+
+        // Obtener el nombre del nuevo estado
+        var nuevoEstado = await _estadoRepository.GetByIdAsync(request.IdEstado);
+        var nombreNuevoEstado = nuevoEstado?.Nombre ?? "Desconocido";
+
+        // Registrar trazabilidad del cambio de estado
+        var descripcion = $"{usuario.NombreCompleto} cambió el estado de '{estadoAnterior}' a '{nombreNuevoEstado}'";
+        
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = solicitud.IdSolicitud,
+            IdUsuarioActor = idUsuario,
+            Accion = "CAMBIO_ESTADO",
+            Descripcion = descripcion,
+            FechaEvento = DateTime.UtcNow
+        });
+
+        // Agregar comentario adicional si viene uno
+        if (!string.IsNullOrWhiteSpace(request.Comentario))
+        {
+            await _comentarioRepository.AddAsync(new Comentario
+            {
+                IdSolicitud = solicitud.IdSolicitud,
+                IdUsuario = idUsuario,
+                Texto = $"Observación al cambiar estado: {request.Comentario}",
+                FechaComentario = DateTime.UtcNow
+            });
+        }
+    }
+
+    public async Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor)
+    {
+        var solicitud = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitud == null)
+            throw new InvalidOperationException("Solicitud no encontrada");
+
+        // Obtener usuario que asigna
+        var usuarioAsignador = await _usuarioRepository.GetByIdAsync(idAsignadoPor);
+        if (usuarioAsignador == null)
+            throw new InvalidOperationException("Usuario asignador no encontrado");
+
+        // Validar permisos: 
+        // 1. Admins pueden asignar a cualquiera
+        // 2. Gestores con encargado activo pueden asignar solo a gestores de su área
+        bool esAdmin = usuarioAsignador.IdRol == 1;
+        bool esEncargadoActivo = await _encargadoRepository.EsEncargadoDeAreaAsync(idAsignadoPor, solicitud.IdArea);
+
+        // Si NO es Admin Y NO es Encargado activo → No puede asignar
+        if (!esAdmin && !esEncargadoActivo)
+        {
+            throw new InvalidOperationException("No tiene permisos para asignar solicitudes. Solo los administradores y los encargados activos pueden asignar solicitudes a otros gestores.");
+        }
+
+        // Si es Encargado (no Admin), validar que asigna a gestor de su área
+        if (!esAdmin && esEncargadoActivo)
+        {
+            // Validar que el gestor al que se asigna pertenece al área
+            var gestorDestino = await _usuarioRepository.GetByIdAsync(request.IdGestor);
+            if (gestorDestino == null)
+                throw new InvalidOperationException("Gestor destino no encontrado");
+
+            if (gestorDestino.IdAreaAsignada != solicitud.IdArea)
+                throw new InvalidOperationException("El gestor no pertenece al área de la solicitud");
+
+            if (gestorDestino.IdRol != 2) // Validar que es gestor (rol 2)
+                throw new InvalidOperationException("Solo se puede asignar a usuarios con rol Gestor");
+        }
+
+        // Guardar gestor anterior para detectar reasignación
+        var idGestorAnterior = solicitud.IdGestorAsignado;
+        var nombreGestorAnterior = string.Empty;
+        if (idGestorAnterior.HasValue)
+        {
+            var gestorAnterior = await _usuarioRepository.GetByIdAsync(idGestorAnterior.Value);
+            nombreGestorAnterior = gestorAnterior?.NombreCompleto ?? "Desconocido";
+        }
+
+        solicitud.IdGestorAsignado = request.IdGestor;
+        solicitud.IdAsignadoPor = idAsignadoPor;
+        solicitud.FechaAsignacion = DateTime.UtcNow;
+
+        await _solicitudRepository.UpdateAsync(solicitud);
+
+        // Registrar trazabilidad con distinción de quien asigna
+        var gestor = await _usuarioRepository.GetByIdAsync(request.IdGestor);
+        var nombreAsignador = usuarioAsignador.NombreCompleto;
+        var nombreGestor = gestor?.NombreCompleto ?? "Desconocido";
+
+        string accion;
+        string descripcion;
+        bool esReasignacion = idGestorAnterior.HasValue;
+
+        // Determinar el tipo de asignación según el rol del usuario
+        if (esAdmin) // Admin
+        {
+            accion = "ASIGNACION_POR_ADMIN";
+            if (esReasignacion)
+            {
+                descripcion = $"Administrador {nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"Administrador {nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+        else if (esEncargadoActivo) // Encargado/Supervisor
+        {
+            accion = "ASIGNACION_POR_SUPERVISOR";
+            if (esReasignacion)
+            {
+                descripcion = $"Supervisor {nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"Supervisor {nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+        else // Caso genérico (no debería llegar aquí por las validaciones, pero por seguridad)
+        {
+            accion = "ASIGNACION";
+            if (esReasignacion)
+            {
+                descripcion = $"{nombreAsignador} reasignó la solicitud de {nombreGestorAnterior} a {nombreGestor}";
+            }
+            else
+            {
+                descripcion = $"{nombreAsignador} asignó la solicitud a {nombreGestor}";
+            }
+        }
+
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = solicitud.IdSolicitud,
+            IdUsuarioActor = idAsignadoPor,
+            Accion = accion,
+            Descripcion = descripcion,
+            FechaEvento = DateTime.UtcNow
+        });
+    }
+
+    public async Task TomarSolicitudAsync(int id, int idGestor)
+    {
+        var solicitud = await _solicitudRepository.GetByIdAsync(id);
+        if (solicitud == null)
+            throw new InvalidOperationException("Solicitud no encontrada");
+
+        // Obtener datos del gestor
+        var gestor = await _usuarioRepository.GetByIdAsync(idGestor);
+        if (gestor == null)
+            throw new InvalidOperationException("Gestor no encontrado");
+
+        solicitud.IdGestorAsignado = idGestor;
+        solicitud.IdAsignadoPor = idGestor; // El mismo gestor se asigna
+        solicitud.FechaAsignacion = DateTime.UtcNow;
+
+        await _solicitudRepository.UpdateAsync(solicitud);
+
+        // Registrar trazabilidad con descripción específica para auto-asignación
+        await _trazabilidadRepository.AddAsync(new TrazabilidadSolicitud
+        {
+            IdSolicitud = solicitud.IdSolicitud,
+            IdUsuarioActor = idGestor,
+            Accion = "TOMAR_SOLICITUD",
+            Descripcion = $"El gestor {gestor.NombreCompleto} tomó la solicitud",
+            FechaEvento = DateTime.UtcNow
+        });
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        await _solicitudRepository.DeleteAsync(id);
+    }
+
+    private static IEnumerable<SolicitudDto> MapToDto(IEnumerable<Solicitud> solicitudes)
+    {
+        return solicitudes.Select(s => new SolicitudDto
+        {
+            IdSolicitud = s.IdSolicitud,
+            Codigo = s.Codigo,
+            Asunto = s.Asunto,
+            Descripcion = s.Descripcion,
+            ArchivoUrl = s.ArchivoUrl,
+            FechaCreacion = s.FechaCreacion,
+            IdSolicitante = s.IdSolicitante ?? 0,
+            NombreSolicitante = s.Solicitante?.NombreCompleto ?? "(Usuario eliminado)",
+            IdArea = s.IdArea,
+            NombreArea = s.Area.Nombre,
+            IdTipoSolicitud = s.IdTipoSolicitud,
+            NombreTipoSolicitud = s.TipoSolicitud.Nombre,
+            IdPrioridad = s.IdPrioridad,
+            NombrePrioridad = s.Prioridad.Nombre,
+            IdEstado = s.IdEstado,
+            NombreEstado = s.Estado.Nombre,
+            IdGestorAsignado = s.IdGestorAsignado,
+            NombreGestorAsignado = s.GestorAsignado?.NombreCompleto,
+            FechaAsignacion = s.FechaAsignacion
+        });
+    }
+}
