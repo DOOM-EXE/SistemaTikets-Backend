@@ -11,4 +11,5 @@ public class UsuarioDto
     public string? NombreArea { get; set; }
     public string? CreadoPor { get; set; }
     public DateTime FechaCreacionUsuario { get; set; }
+    public bool Activo { get; set; }
 }

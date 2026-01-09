@@ -68,11 +68,18 @@ public class UsuariosController : ControllerBase
         }
     }
 
-    [HttpDelete("{id}")]
+    [HttpPatch("{id}/estado")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> CambiarEstado(int id, [FromBody] CambiarEstadoUsuarioRequest request)
     {
-        await _usuarioService.DeleteAsync(id);
-        return NoContent();
+        try
+        {
+            var usuario = await _usuarioService.CambiarEstadoAsync(id, request.Activo);
+            return Ok(usuario);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 }

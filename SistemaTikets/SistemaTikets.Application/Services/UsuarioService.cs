@@ -10,7 +10,7 @@ public interface IUsuarioService
     Task<UsuarioDto?> GetByIdAsync(int id);
     Task<UsuarioDto> CreateAsync(CreateUsuarioRequest request, int idCreador);
     Task<UsuarioDto> UpdateAsync(int id, UpdateUsuarioRequest request);
-    Task DeleteAsync(int id);
+    Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo);
 }
 
 public class UsuarioService : IUsuarioService
@@ -18,18 +18,15 @@ public class UsuarioService : IUsuarioService
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IRolRepository _rolRepository;
     private readonly IAreaRepository _areaRepository;
-    private readonly ISolicitudRepository _solicitudRepository;
 
     public UsuarioService(
         IUsuarioRepository usuarioRepository,
         IRolRepository rolRepository,
-        IAreaRepository areaRepository,
-        ISolicitudRepository solicitudRepository)
+        IAreaRepository areaRepository)
     {
         _usuarioRepository = usuarioRepository;
         _rolRepository = rolRepository;
         _areaRepository = areaRepository;
-        _solicitudRepository = solicitudRepository;
     }
 
     public async Task<IEnumerable<UsuarioDto>> GetAllAsync()
@@ -45,7 +42,8 @@ public class UsuarioService : IUsuarioService
             IdAreaAsignada = u.IdAreaAsignada,
             NombreArea = u.AreaAsignada?.Nombre,
             CreadoPor = u.CreadoPor?.NombreCompleto,
-            FechaCreacionUsuario = u.FechaCreacionUsuario
+            FechaCreacionUsuario = u.FechaCreacionUsuario,
+            Activo = u.Activo
         });
     }
 
@@ -65,7 +63,8 @@ public class UsuarioService : IUsuarioService
             IdAreaAsignada = usuario.IdAreaAsignada,
             NombreArea = usuario.AreaAsignada?.Nombre,
             CreadoPor = usuario.CreadoPor?.NombreCompleto,
-            FechaCreacionUsuario = usuario.FechaCreacionUsuario
+            FechaCreacionUsuario = usuario.FechaCreacionUsuario,
+            Activo = usuario.Activo
         };
     }
 
@@ -82,7 +81,8 @@ public class UsuarioService : IUsuarioService
             IdRol = request.IdRol,
             IdAreaAsignada = request.IdAreaAsignada,
             IdCreadoPor = idCreador,
-            FechaCreacionUsuario = DateTime.UtcNow
+            FechaCreacionUsuario = DateTime.UtcNow,
+            Activo = true
         };
 
         var created = await _usuarioRepository.AddAsync(usuario);
@@ -100,7 +100,8 @@ public class UsuarioService : IUsuarioService
             Rol = rol?.Nombre ?? string.Empty,
             IdAreaAsignada = created.IdAreaAsignada,
             NombreArea = area?.Nombre,
-            FechaCreacionUsuario = created.FechaCreacionUsuario
+            FechaCreacionUsuario = created.FechaCreacionUsuario,
+            Activo = created.Activo
         };
     }
 
@@ -110,13 +111,10 @@ public class UsuarioService : IUsuarioService
         if (usuario == null)
             throw new InvalidOperationException("Usuario no encontrado");
 
-        // Actualizar nombre completo
         usuario.NombreCompleto = request.NombreCompleto;
         
-        // Actualizar username si se proporciona y es diferente al actual
         if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != usuario.Username)
         {
-            // Verificar que el nuevo username no esté en uso por otro usuario
             if (await _usuarioRepository.ExistsAsync(request.Username))
                 throw new InvalidOperationException("El nombre de usuario ya existe");
             
@@ -126,7 +124,6 @@ public class UsuarioService : IUsuarioService
         usuario.IdRol = request.IdRol;
         usuario.IdAreaAsignada = request.IdAreaAsignada;
 
-        // Actualizar contraseña si se proporciona
         if (!string.IsNullOrEmpty(request.NewPassword))
         {
             usuario.PasswordHash = HashPassword(request.NewPassword);
@@ -148,41 +145,37 @@ public class UsuarioService : IUsuarioService
             Rol = rol?.Nombre ?? string.Empty,
             IdAreaAsignada = usuario.IdAreaAsignada,
             NombreArea = area?.Nombre,
-            FechaCreacionUsuario = usuario.FechaCreacionUsuario
+            FechaCreacionUsuario = usuario.FechaCreacionUsuario,
+            Activo = usuario.Activo
         };
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id);
         if (usuario == null)
             throw new InvalidOperationException("Usuario no encontrado");
 
-        // Validar que NO tenga solicitudes ACTIVAS como solicitante
-        // Solo bloquear si tiene solicitudes en estado "Nueva" (1) o "En Progreso" (2)
-        var solicitudesComoSolicitante = await _solicitudRepository.GetBySolicitanteAsync(id);
-        var solicitudesActivas = solicitudesComoSolicitante
-            .Where(s => s.IdEstado == 1 || s.IdEstado == 2);
-        
-        if (solicitudesActivas.Any())
-        {
-            var listaSolicitudes = string.Join(", ", solicitudesActivas.Select(s => s.Codigo));
-            throw new InvalidOperationException(
-                $"No se puede eliminar el usuario porque tiene {solicitudesActivas.Count()} solicitud(es) activa(s) " +
-                $"como solicitante: {listaSolicitudes}. " +
-                "Las solicitudes deben estar en estado Resuelta, Cerrada o Cancelada para poder eliminar el usuario."
-            );
-        }
+        usuario.Activo = activo;
+        await _usuarioRepository.UpdateAsync(usuario);
 
-        // ✅ Si llega aquí, puede eliminar:
-        // - No tiene solicitudes activas (puede tener cerradas/resueltas/canceladas)
-        // - Sus solicitudes antiguas quedarán con id_solicitante = NULL
-        // - Sus comentarios quedarán con id_usuario = NULL
-        // - Sus trazabilidades quedarán con id_usuario_actor = NULL
-        // - Sus asignaciones como gestor quedarán en NULL
-        // - Sus encargados se eliminarán (Cascade)
-        
-        await _usuarioRepository.DeleteAsync(id);
+        var rol = await _rolRepository.GetByIdAsync(usuario.IdRol);
+        var area = usuario.IdAreaAsignada.HasValue
+            ? await _areaRepository.GetByIdAsync(usuario.IdAreaAsignada.Value)
+            : null;
+
+        return new UsuarioDto
+        {
+            IdUsuario = usuario.IdUsuario,
+            NombreCompleto = usuario.NombreCompleto,
+            Username = usuario.Username,
+            IdRol = usuario.IdRol,
+            Rol = rol?.Nombre ?? string.Empty,
+            IdAreaAsignada = usuario.IdAreaAsignada,
+            NombreArea = area?.Nombre,
+            FechaCreacionUsuario = usuario.FechaCreacionUsuario,
+            Activo = usuario.Activo
+        };
     }
 
     private static string HashPassword(string password)

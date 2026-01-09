@@ -14,6 +14,7 @@ public class Usuario
 
     public int? IdCreadoPor { get; set; }
     public DateTime FechaCreacionUsuario { get; set; } = DateTime.UtcNow;
+    public bool Activo { get; set; } = true;
 
     public Rol Rol { get; set; } = null!;
     public Area? AreaAsignada { get; set; }

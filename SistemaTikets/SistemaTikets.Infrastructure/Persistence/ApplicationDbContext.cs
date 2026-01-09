@@ -92,6 +92,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.IdAreaAsignada).HasColumnName("id_area_asignada");
             entity.Property(e => e.IdCreadoPor).HasColumnName("id_creado_por");
             entity.Property(e => e.FechaCreacionUsuario).HasColumnName("fecha_creacion_usuario").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true);
 
             entity.HasIndex(e => e.Username).IsUnique();
 

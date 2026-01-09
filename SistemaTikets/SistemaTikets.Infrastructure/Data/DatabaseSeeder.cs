@@ -156,7 +156,8 @@ public static class DatabaseSeeder
                 IdRol = rolAdmin.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
                 IdCreadoPor = null,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -166,7 +167,8 @@ public static class DatabaseSeeder
                 IdRol = rolAdmin.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
 
             // ========== GESTORES (uno por cada área principal) ==========
@@ -178,7 +180,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -188,7 +191,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasTI.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -198,7 +202,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasRRHH.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -208,7 +213,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasRRHH.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -218,7 +224,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasLogistica.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -228,7 +235,8 @@ public static class DatabaseSeeder
                 IdRol = rolGestor.IdRol,
                 IdAreaAsignada = areasContabilidad.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
 
             // ========== SOLICITANTES ==========
@@ -240,7 +248,8 @@ public static class DatabaseSeeder
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasOperaciones.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -250,7 +259,8 @@ public static class DatabaseSeeder
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasOperaciones.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -260,7 +270,8 @@ public static class DatabaseSeeder
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasContabilidad.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             },
             new()
             {
@@ -270,7 +281,8 @@ public static class DatabaseSeeder
                 IdRol = rolSolicitante.IdRol,
                 IdAreaAsignada = areasLogistica.IdArea,
                 IdCreadoPor = 1,
-                FechaCreacionUsuario = DateTime.UtcNow
+                FechaCreacionUsuario = DateTime.UtcNow,
+                Activo = true
             }
         };
 

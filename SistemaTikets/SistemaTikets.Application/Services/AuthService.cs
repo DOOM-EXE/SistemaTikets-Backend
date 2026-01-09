@@ -28,9 +28,13 @@ public class AuthService : IAuthService
         if (usuario == null)
             return null;
 
-        // Verificar contrase�a (usando PasswordHasher de Infrastructure)
+        // Verificar contraseña (usando PasswordHasher de Infrastructure)
         var passwordHash = HashPassword(request.Password);
         if (usuario.PasswordHash != passwordHash)
+            return null;
+
+        // Verificar que el usuario esté activo
+        if (!usuario.Activo)
             return null;
 
         // Generar token JWT
