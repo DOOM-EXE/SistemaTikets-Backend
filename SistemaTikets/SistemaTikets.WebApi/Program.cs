@@ -8,6 +8,7 @@ using SistemaTikets.Infrastructure.Data;
 using SistemaTikets.Infrastructure.Persistence;
 using SistemaTikets.Infrastructure.Repositories;
 using SistemaTikets.Infrastructure.Security;
+using SistemaTikets.WebApi.Filters;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,12 +26,15 @@ builder.Services.AddScoped<IRolRepository, RolRepository>();
 builder.Services.AddScoped<ITrazabilidadRepository, TrazabilidadRepository>();
 builder.Services.AddScoped<IComentarioRepository, ComentarioRepository>();
 builder.Services.AddScoped<IEncargadoRepository, EncargadoRepository>();
+builder.Services.AddScoped<ILogAuditoriaRepository, LogAuditoriaRepository>();
 
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<ISolicitudService, SolicitudService>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
 builder.Services.AddScoped<IComentarioService, ComentarioService>();
 builder.Services.AddScoped<IEncargadoService, EncargadoService>();
+builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
+builder.Services.AddScoped<ILogAuditoriaService, LogAuditoriaService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"]!;
@@ -44,6 +48,7 @@ builder.Services.AddScoped<IAuthService>(sp =>
 {
     var usuarioRepo = sp.GetRequiredService<IUsuarioRepository>();
     var jwtGenerator = sp.GetRequiredService<JwtTokenGenerator>();
+    var auditoriaService = sp.GetRequiredService<IAuditoriaService>();
 
     return new AuthService(
         usuarioRepo,
@@ -51,7 +56,8 @@ builder.Services.AddScoped<IAuthService>(sp =>
         {
             var usuario = usuarioRepo.GetByIdAsync(int.Parse(userId)).Result;
             return jwtGenerator.GenerateToken(usuario!);
-        });
+        },
+        auditoriaService);
 });
 
 builder.Services.AddAuthentication(options =>
@@ -84,7 +90,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Sistema de Tickets API",
         Version = "v1",
-        Description = "API REST para el Sistema de Solicitudes Internas (Mesa de Servicios)"
+        Description = "API REST para el Sistema de Solicitudes Internas"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -122,6 +128,9 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+// DI para el filtro personalizado
+builder.Services.AddScoped<CambiarPasswordAccessFilter>();
 
 var app = builder.Build();
 

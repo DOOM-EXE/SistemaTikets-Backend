@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Archivos;
+using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -11,14 +14,17 @@ public class ArchivosController : ControllerBase
 {
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<ArchivosController> _logger;
+    private readonly IAuditoriaService? _auditoriaService;
     private const long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
     public ArchivosController(
         IWebHostEnvironment environment,
-        ILogger<ArchivosController> logger)
+        ILogger<ArchivosController> logger,
+        IAuditoriaService? auditoriaService = null)
     {
         _environment = environment;
         _logger = logger;
+        _auditoriaService = auditoriaService;
     }
 
     [HttpPost("upload")]
@@ -62,6 +68,14 @@ public class ArchivosController : ControllerBase
 
             _logger.LogInformation("Archivo subido exitosamente: {FileName}", uniqueFileName);
 
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+
+            if (_auditoriaService != null && idUsuario > 0)
+            {
+                await _auditoriaService.RegistrarSubidaArchivo(idUsuario, uniqueFileName, file.Length, ipAddress);
+            }
+
             return Ok(new UploadFileResponse
             {
                 FileName = file.FileName,
@@ -103,9 +117,15 @@ public class ArchivosController : ControllerBase
                 _ => "application/octet-stream"
             };
 
-            _logger.LogInformation("Archivo descargado: {FileName} por usuario {UserId}", 
-                fileName, 
-                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+
+            _logger.LogInformation("Archivo descargado: {FileName} por usuario {UserId}", fileName, idUsuario);
+
+            if (_auditoriaService != null && idUsuario > 0)
+            {
+                await _auditoriaService.RegistrarDescargaArchivo(idUsuario, fileName, ipAddress);
+            }
 
             return File(fileBytes, contentType, fileName);
         }

@@ -9,7 +9,7 @@ namespace SistemaTikets.Application.Services;
 public interface IComentarioService
 {
     Task<IEnumerable<ComentarioDto>> GetBySolicitudAsync(int idSolicitud);
-    Task<ComentarioDto> AddAsync(CreateComentarioRequest request, int idUsuario);
+    Task<ComentarioDto> AddAsync(CreateComentarioRequest request, int idUsuario, string? ipAddress = null);
     Task DeleteAsync(int id);
 }
 
@@ -17,13 +17,16 @@ public class ComentarioService : IComentarioService
 {
     private readonly IComentarioRepository _comentarioRepository;
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService? _auditoriaService;
 
     public ComentarioService(
         IComentarioRepository comentarioRepository,
-        IUsuarioRepository usuarioRepository)
+        IUsuarioRepository usuarioRepository,
+        IAuditoriaService? auditoriaService = null)
     {
         _comentarioRepository = comentarioRepository;
         _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
     }
 
     public async Task<IEnumerable<ComentarioDto>> GetBySolicitudAsync(int idSolicitud)
@@ -41,7 +44,7 @@ public class ComentarioService : IComentarioService
         });
     }
 
-    public async Task<ComentarioDto> AddAsync(CreateComentarioRequest request, int idUsuario)
+    public async Task<ComentarioDto> AddAsync(CreateComentarioRequest request, int idUsuario, string? ipAddress = null)
     {
         var comentario = new Comentario
         {
@@ -52,6 +55,12 @@ public class ComentarioService : IComentarioService
         };
 
         var created = await _comentarioRepository.AddAsync(comentario);
+        
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarCreacionComentario(idUsuario, request.IdSolicitud, request.Texto, ipAddress);
+        }
+
         var usuario = await _usuarioRepository.GetByIdAsync(idUsuario);
 
         return new ComentarioDto

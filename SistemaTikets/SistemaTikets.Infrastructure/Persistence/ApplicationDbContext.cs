@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TrazabilidadSolicitud> TrazabilidadesSolicitud { get; set; }
     public DbSet<Comentario> Comentarios { get; set; }
     public DbSet<Encargado> Encargados { get; set; }
+    public DbSet<LogAuditoria> LogsAuditoria { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +94,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.IdCreadoPor).HasColumnName("id_creado_por");
             entity.Property(e => e.FechaCreacionUsuario).HasColumnName("fecha_creacion_usuario").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true);
+            entity.Property(e => e.DebeCambiarPassword).HasColumnName("debe_cambiar_password").HasDefaultValue(true);
 
             entity.HasIndex(e => e.Username).IsUnique();
 
@@ -237,6 +239,34 @@ public class ApplicationDbContext : DbContext
                 .WithMany(a => a.Encargados)
                 .HasForeignKey(e => e.IdArea)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configuracion de LogAuditoria
+        modelBuilder.Entity<LogAuditoria>(entity =>
+        {
+            entity.ToTable("logs_auditoria");
+            entity.HasKey(e => e.IdLog);
+            entity.Property(e => e.IdLog).HasColumnName("id_log");
+            entity.Property(e => e.IdUsuario).HasColumnName("id_usuario");
+            entity.Property(e => e.TipoAccion).HasColumnName("tipo_accion").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EntidadAfectada).HasColumnName("entidad_afectada").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.IdEntidad).HasColumnName("id_entidad");
+            entity.Property(e => e.ValoresAnteriores).HasColumnName("valores_anteriores").HasColumnType("text");
+            entity.Property(e => e.ValoresNuevos).HasColumnName("valores_nuevos").HasColumnType("text");
+            entity.Property(e => e.IpOrigen).HasColumnName("ip_origen").HasMaxLength(50);
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Resultado).HasColumnName("resultado").HasMaxLength(50).HasDefaultValue("Exitoso");
+            entity.Property(e => e.FechaEvento).HasColumnName("fecha_evento").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasIndex(e => e.TipoAccion);
+            entity.HasIndex(e => e.EntidadAfectada);
+            entity.HasIndex(e => e.FechaEvento);
+            entity.HasIndex(e => new { e.EntidadAfectada, e.IdEntidad });
+
+            entity.HasOne(e => e.Usuario)
+                .WithMany()
+                .HasForeignKey(e => e.IdUsuario)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

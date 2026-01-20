@@ -8,9 +8,9 @@ public interface IUsuarioService
 {
     Task<IEnumerable<UsuarioDto>> GetAllAsync();
     Task<UsuarioDto?> GetByIdAsync(int id);
-    Task<UsuarioDto> CreateAsync(CreateUsuarioRequest request, int idCreador);
-    Task<UsuarioDto> UpdateAsync(int id, UpdateUsuarioRequest request);
-    Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo);
+    Task<UsuarioDto> CreateAsync(CreateUsuarioRequest request, int idCreador, string? ipAddress = null);
+    Task<UsuarioDto> UpdateAsync(int id, UpdateUsuarioRequest request, int idEditor, string? ipAddress = null);
+    Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo, int idEditor, string? ipAddress = null);
 }
 
 public class UsuarioService : IUsuarioService
@@ -18,15 +18,18 @@ public class UsuarioService : IUsuarioService
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IRolRepository _rolRepository;
     private readonly IAreaRepository _areaRepository;
+    private readonly IAuditoriaService? _auditoriaService;
 
     public UsuarioService(
         IUsuarioRepository usuarioRepository,
         IRolRepository rolRepository,
-        IAreaRepository areaRepository)
+        IAreaRepository areaRepository,
+        IAuditoriaService? auditoriaService = null)
     {
         _usuarioRepository = usuarioRepository;
         _rolRepository = rolRepository;
         _areaRepository = areaRepository;
+        _auditoriaService = auditoriaService;
     }
 
     public async Task<IEnumerable<UsuarioDto>> GetAllAsync()
@@ -68,7 +71,7 @@ public class UsuarioService : IUsuarioService
         };
     }
 
-    public async Task<UsuarioDto> CreateAsync(CreateUsuarioRequest request, int idCreador)
+    public async Task<UsuarioDto> CreateAsync(CreateUsuarioRequest request, int idCreador, string? ipAddress = null)
     {
         if (await _usuarioRepository.ExistsAsync(request.Username))
             throw new InvalidOperationException("El nombre de usuario ya existe");
@@ -86,6 +89,12 @@ public class UsuarioService : IUsuarioService
         };
 
         var created = await _usuarioRepository.AddAsync(usuario);
+        
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarCreacionUsuario(idCreador, created, ipAddress);
+        }
+
         var rol = await _rolRepository.GetByIdAsync(created.IdRol);
         var area = created.IdAreaAsignada.HasValue
             ? await _areaRepository.GetByIdAsync(created.IdAreaAsignada.Value)
@@ -105,11 +114,21 @@ public class UsuarioService : IUsuarioService
         };
     }
 
-    public async Task<UsuarioDto> UpdateAsync(int id, UpdateUsuarioRequest request)
+    public async Task<UsuarioDto> UpdateAsync(int id, UpdateUsuarioRequest request, int idEditor, string? ipAddress = null)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id);
         if (usuario == null)
             throw new InvalidOperationException("Usuario no encontrado");
+
+        var valoresAnteriores = new
+        {
+            usuario.NombreCompleto,
+            usuario.Username,
+            usuario.IdRol,
+            usuario.IdAreaAsignada
+        };
+
+        bool cambioPassword = false;
 
         usuario.NombreCompleto = request.NombreCompleto;
         
@@ -127,9 +146,47 @@ public class UsuarioService : IUsuarioService
         if (!string.IsNullOrEmpty(request.NewPassword))
         {
             usuario.PasswordHash = HashPassword(request.NewPassword);
+            cambioPassword = true;
+            if (request.CambiarSoloPassword == true)
+            {
+                usuario.DebeCambiarPassword = false;
+            }
+        }
+
+        // Si el admin está editando a otro usuario y envía el flag, lo actualiza
+        if (request.DebeCambiarPassword.HasValue)
+        {
+            // Solo permitir que el admin fuerce el cambio para otros usuarios
+            if (idEditor != id)
+            {
+                var editor = await _usuarioRepository.GetByIdAsync(idEditor);
+                if (editor != null && editor.Rol != null && editor.Rol.Nombre == "Admin")
+                {
+                    usuario.DebeCambiarPassword = request.DebeCambiarPassword.Value;
+                }
+            }
         }
 
         await _usuarioRepository.UpdateAsync(usuario);
+
+        var valoresNuevos = new
+        {
+            usuario.NombreCompleto,
+            usuario.Username,
+            usuario.IdRol,
+            usuario.IdAreaAsignada
+        };
+
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarEdicionUsuario(idEditor, id, valoresAnteriores, valoresNuevos, ipAddress);
+            
+            // Registrar cambio de password por separado si aplica
+            if (cambioPassword)
+            {
+                await _auditoriaService.RegistrarCambioPasswordUsuario(idEditor, id, ipAddress);
+            }
+        }
 
         var rol = await _rolRepository.GetByIdAsync(usuario.IdRol);
         var area = usuario.IdAreaAsignada.HasValue
@@ -150,14 +207,20 @@ public class UsuarioService : IUsuarioService
         };
     }
 
-    public async Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo)
+    public async Task<UsuarioDto> CambiarEstadoAsync(int id, bool activo, int idEditor, string? ipAddress = null)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id);
         if (usuario == null)
             throw new InvalidOperationException("Usuario no encontrado");
 
+        var estadoAnterior = usuario.Activo;
         usuario.Activo = activo;
         await _usuarioRepository.UpdateAsync(usuario);
+
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarCambioEstadoUsuario(idEditor, id, estadoAnterior, activo, ipAddress);
+        }
 
         var rol = await _rolRepository.GetByIdAsync(usuario.IdRol);
         var area = usuario.IdAreaAsignada.HasValue

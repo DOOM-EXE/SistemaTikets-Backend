@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Comentarios;
 using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -29,7 +30,8 @@ public class ComentariosController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateComentarioRequest request)
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var comentario = await _comentarioService.AddAsync(request, idUsuario);
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var comentario = await _comentarioService.AddAsync(request, idUsuario, ipAddress);
         return CreatedAtAction(nameof(GetBySolicitud), new { idSolicitud = comentario.IdComentario }, comentario);
     }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Solicitudes;
 using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -103,7 +104,8 @@ public class SolicitudesController : ControllerBase
         try
         {
             var idSolicitante = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var solicitud = await _solicitudService.CreateAsync(request, idSolicitante);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var solicitud = await _solicitudService.CreateAsync(request, idSolicitante, ipAddress);
             return CreatedAtAction(nameof(GetDetalle), new { id = solicitud.IdSolicitud }, solicitud);
         }
         catch (InvalidOperationException ex)
@@ -134,7 +136,8 @@ public class SolicitudesController : ControllerBase
             if (solicitudDetalle.Solicitud.IdEstado != 1)
                 return BadRequest(new { message = "Solo se puede editar una solicitud en estado 'Nueva'" });
             
-            var solicitud = await _solicitudService.UpdateAsync(id, request, idUsuario);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var solicitud = await _solicitudService.UpdateAsync(id, request, idUsuario, ipAddress);
             return Ok(solicitud);
         }
         catch (InvalidOperationException ex)
@@ -150,7 +153,8 @@ public class SolicitudesController : ControllerBase
         try
         {
             var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _solicitudService.CambiarEstadoAsync(id, request, idUsuario);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _solicitudService.CambiarEstadoAsync(id, request, idUsuario, ipAddress);
             return Ok(new { message = "Estado cambiado exitosamente" });
         }
         catch (InvalidOperationException ex)
@@ -160,13 +164,14 @@ public class SolicitudesController : ControllerBase
     }
 
     [HttpPost("{id}/asignar-gestor")]
-    [Authorize] // Permitir a usuarios autenticados, validación de permisos en service
+    [Authorize]
     public async Task<IActionResult> AsignarGestor(int id, [FromBody] AsignarGestorRequest request)
     {
         try
         {
             var idAsignadoPor = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _solicitudService.AsignarGestorAsync(id, request, idAsignadoPor);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _solicitudService.AsignarGestorAsync(id, request, idAsignadoPor, ipAddress);
             return Ok(new { message = "Gestor asignado exitosamente" });
         }
         catch (InvalidOperationException ex)
@@ -182,7 +187,8 @@ public class SolicitudesController : ControllerBase
         try
         {
             var idGestor = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _solicitudService.TomarSolicitudAsync(id, idGestor);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _solicitudService.TomarSolicitudAsync(id, idGestor, ipAddress);
             return Ok(new { message = "Solicitud tomada exitosamente" });
         }
         catch (InvalidOperationException ex)

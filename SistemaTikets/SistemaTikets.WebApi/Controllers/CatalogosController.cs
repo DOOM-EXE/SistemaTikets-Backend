@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Catalogos;
 using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -38,7 +40,9 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateArea([FromBody] CreateAreaRequest request)
     {
-        var area = await _catalogoService.CreateAreaAsync(request);
+        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var area = await _catalogoService.CreateAreaAsync(request, idUsuario, ipAddress);
         return CreatedAtAction(nameof(GetAreaById), new { id = area.IdArea }, area);
     }
 
@@ -48,7 +52,9 @@ public class CatalogosController : ControllerBase
     {
         try
         {
-            var area = await _catalogoService.UpdateAreaAsync(id, request);
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var area = await _catalogoService.UpdateAreaAsync(id, request, idUsuario, ipAddress);
             return Ok(area);
         }
         catch (InvalidOperationException ex)
@@ -61,8 +67,17 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteArea(int id)
     {
-        await _catalogoService.DeleteAreaAsync(id);
-        return NoContent();
+        try
+        {
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _catalogoService.DeleteAreaAsync(id, idUsuario, ipAddress);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ============ TIPOS DE SOLICITUD ============
@@ -93,7 +108,9 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateTipoSolicitud([FromBody] CreateTipoSolicitudRequest request)
     {
-        var tipo = await _catalogoService.CreateTipoSolicitudAsync(request);
+        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var tipo = await _catalogoService.CreateTipoSolicitudAsync(request, idUsuario, ipAddress);
         return CreatedAtAction(nameof(GetTipoSolicitudById), new { id = tipo.IdTipoSolicitud }, tipo);
     }
 
@@ -103,7 +120,9 @@ public class CatalogosController : ControllerBase
     {
         try
         {
-            var tipo = await _catalogoService.UpdateTipoSolicitudAsync(id, request);
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var tipo = await _catalogoService.UpdateTipoSolicitudAsync(id, request, idUsuario, ipAddress);
             return Ok(tipo);
         }
         catch (InvalidOperationException ex)
@@ -116,8 +135,17 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteTipoSolicitud(int id)
     {
-        await _catalogoService.DeleteTipoSolicitudAsync(id);
-        return NoContent();
+        try
+        {
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _catalogoService.DeleteTipoSolicitudAsync(id, idUsuario, ipAddress);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ============ PRIORIDADES ============
@@ -141,7 +169,9 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreatePrioridad([FromBody] CreatePrioridadRequest request)
     {
-        var prioridad = await _catalogoService.CreatePrioridadAsync(request);
+        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var prioridad = await _catalogoService.CreatePrioridadAsync(request, idUsuario, ipAddress);
         return CreatedAtAction(nameof(GetPrioridadById), new { id = prioridad.IdPrioridad }, prioridad);
     }
 
@@ -151,7 +181,9 @@ public class CatalogosController : ControllerBase
     {
         try
         {
-            var prioridad = await _catalogoService.UpdatePrioridadAsync(id, request);
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var prioridad = await _catalogoService.UpdatePrioridadAsync(id, request, idUsuario, ipAddress);
             return Ok(prioridad);
         }
         catch (InvalidOperationException ex)
@@ -164,8 +196,17 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeletePrioridad(int id)
     {
-        await _catalogoService.DeletePrioridadAsync(id);
-        return NoContent();
+        try
+        {
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _catalogoService.DeletePrioridadAsync(id, idUsuario, ipAddress);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ============ ESTADOS ============
@@ -189,7 +230,9 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateEstado([FromBody] CreateEstadoRequest request)
     {
-        var estado = await _catalogoService.CreateEstadoAsync(request);
+        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var estado = await _catalogoService.CreateEstadoAsync(request, idUsuario, ipAddress);
         return CreatedAtAction(nameof(GetEstadoById), new { id = estado.IdEstado }, estado);
     }
 
@@ -199,7 +242,9 @@ public class CatalogosController : ControllerBase
     {
         try
         {
-            var estado = await _catalogoService.UpdateEstadoAsync(id, request);
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var estado = await _catalogoService.UpdateEstadoAsync(id, request, idUsuario, ipAddress);
             return Ok(estado);
         }
         catch (InvalidOperationException ex)
@@ -212,8 +257,17 @@ public class CatalogosController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteEstado(int id)
     {
-        await _catalogoService.DeleteEstadoAsync(id);
-        return NoContent();
+        try
+        {
+            var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            await _catalogoService.DeleteEstadoAsync(id, idUsuario, ipAddress);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ============ ROLES ============

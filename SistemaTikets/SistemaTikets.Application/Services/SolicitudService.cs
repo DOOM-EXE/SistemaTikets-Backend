@@ -13,11 +13,11 @@ public interface ISolicitudService
     Task<IEnumerable<SolicitudDto>> GetByGestorAsync(int idGestor);
     Task<IEnumerable<SolicitudDto>> GetByAreaAsync(int idArea);
     Task<SolicitudDetalleDto?> GetDetalleAsync(int id);
-    Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante);
-    Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario);
-    Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario);
-    Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor);
-    Task TomarSolicitudAsync(int id, int idGestor);
+    Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante, string? ipAddress = null);
+    Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario, string? ipAddress = null);
+    Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario, string? ipAddress = null);
+    Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor, string? ipAddress = null);
+    Task TomarSolicitudAsync(int id, int idGestor, string? ipAddress = null);
     Task DeleteAsync(int id);
 }
 
@@ -29,6 +29,7 @@ public class SolicitudService : ISolicitudService
     private readonly IEstadoRepository _estadoRepository;
     private readonly IEncargadoRepository _encargadoRepository;
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService? _auditoriaService;
 
     public SolicitudService(
         ISolicitudRepository solicitudRepository,
@@ -36,7 +37,8 @@ public class SolicitudService : ISolicitudService
         IComentarioRepository comentarioRepository,
         IEstadoRepository estadoRepository,
         IEncargadoRepository encargadoRepository,
-        IUsuarioRepository usuarioRepository)
+        IUsuarioRepository usuarioRepository,
+        IAuditoriaService? auditoriaService = null)
     {
         _solicitudRepository = solicitudRepository;
         _trazabilidadRepository = trazabilidadRepository;
@@ -44,6 +46,7 @@ public class SolicitudService : ISolicitudService
         _estadoRepository = estadoRepository;
         _encargadoRepository = encargadoRepository;
         _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
     }
 
     public async Task<IEnumerable<SolicitudDto>> GetAllAsync()
@@ -114,7 +117,7 @@ public class SolicitudService : ISolicitudService
         };
     }
 
-    public async Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante)
+    public async Task<SolicitudDto> CreateAsync(CreateSolicitudRequest request, int idSolicitante, string? ipAddress = null)
     {
         // Obtener el estado "Nueva" (asumimos que tiene ID 1)
         var estadoNueva = await _estadoRepository.GetByIdAsync(1);
@@ -146,10 +149,15 @@ public class SolicitudService : ISolicitudService
             FechaEvento = DateTime.UtcNow
         });
 
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarCreacionSolicitud(idSolicitante, created, ipAddress);
+        }
+
         return MapToDto(new[] { created }).First();
     }
 
-    public async Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario)
+    public async Task<SolicitudDto> UpdateAsync(int id, UpdateSolicitudRequest request, int idUsuario, string? ipAddress = null)
     {
         var solicitud = await _solicitudRepository.GetByIdAsync(id);
         if (solicitud == null)
@@ -158,6 +166,13 @@ public class SolicitudService : ISolicitudService
         // Validar que solo se puede editar si esta en estado "Nueva"
         if (solicitud.IdEstado != 1)
             throw new InvalidOperationException("Solo se puede editar una solicitud en estado 'Nueva'");
+
+        var valoresAnteriores = new
+        {
+            solicitud.Asunto,
+            solicitud.Descripcion,
+            solicitud.IdPrioridad
+        };
 
         solicitud.Asunto = request.Asunto;
         solicitud.Descripcion = request.Descripcion;
@@ -175,6 +190,18 @@ public class SolicitudService : ISolicitudService
             FechaEvento = DateTime.UtcNow
         });
 
+        var valoresNuevos = new
+        {
+            solicitud.Asunto,
+            solicitud.Descripcion,
+            solicitud.IdPrioridad
+        };
+
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarEdicionSolicitud(idUsuario, id, valoresAnteriores, valoresNuevos, ipAddress);
+        }
+
         // Recargar la solicitud con todas sus relaciones para evitar NullReferenceException
         var solicitudActualizada = await _solicitudRepository.GetByIdAsync(id);
         if (solicitudActualizada == null)
@@ -183,7 +210,7 @@ public class SolicitudService : ISolicitudService
         return MapToDto(new[] { solicitudActualizada }).First();
     }
 
-    public async Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario)
+    public async Task CambiarEstadoAsync(int id, CambiarEstadoRequest request, int idUsuario, string? ipAddress = null)
     {
         var solicitud = await _solicitudRepository.GetByIdAsync(id);
         if (solicitud == null)
@@ -217,6 +244,11 @@ public class SolicitudService : ISolicitudService
             FechaEvento = DateTime.UtcNow
         });
 
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarCambioEstadoSolicitud(idUsuario, id, estadoAnterior, nombreNuevoEstado, ipAddress);
+        }
+
         // Agregar comentario adicional si viene uno
         if (!string.IsNullOrWhiteSpace(request.Comentario))
         {
@@ -230,7 +262,7 @@ public class SolicitudService : ISolicitudService
         }
     }
 
-    public async Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor)
+    public async Task AsignarGestorAsync(int id, AsignarGestorRequest request, int idAsignadoPor, string? ipAddress = null)
     {
         var solicitud = await _solicitudRepository.GetByIdAsync(id);
         if (solicitud == null)
@@ -338,9 +370,14 @@ public class SolicitudService : ISolicitudService
             Descripcion = descripcion,
             FechaEvento = DateTime.UtcNow
         });
+
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarAsignacionGestor(idAsignadoPor, id, idGestorAnterior, request.IdGestor, ipAddress);
+        }
     }
 
-    public async Task TomarSolicitudAsync(int id, int idGestor)
+    public async Task TomarSolicitudAsync(int id, int idGestor, string? ipAddress = null)
     {
         var solicitud = await _solicitudRepository.GetByIdAsync(id);
         if (solicitud == null)
@@ -366,6 +403,11 @@ public class SolicitudService : ISolicitudService
             Descripcion = $"El gestor {gestor.NombreCompleto} tomó la solicitud",
             FechaEvento = DateTime.UtcNow
         });
+
+        if (_auditoriaService != null)
+        {
+            await _auditoriaService.RegistrarTomarSolicitud(idGestor, id, gestor.NombreCompleto, ipAddress);
+        }
     }
 
     public async Task DeleteAsync(int id)

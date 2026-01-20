@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Usuarios;
 using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
+using SistemaTikets.WebApi.Filters;
+using SistemaTikets.Domain.Interfaces;
+
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -12,10 +16,12 @@ namespace SistemaTikets.WebApi.Controllers;
 public class UsuariosController : ControllerBase
 {
     private readonly IUsuarioService _usuarioService;
+    private readonly IUsuarioRepository _usuarioRepository;
 
-    public UsuariosController(IUsuarioService usuarioService)
+    public UsuariosController(IUsuarioService usuarioService, IUsuarioRepository usuarioRepository)
     {
         _usuarioService = usuarioService;
+        _usuarioRepository = usuarioRepository;
     }
 
     [HttpGet]
@@ -44,7 +50,8 @@ public class UsuariosController : ControllerBase
         try
         {
             var idCreador = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var usuario = await _usuarioService.CreateAsync(request, idCreador);
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var usuario = await _usuarioService.CreateAsync(request, idCreador, ipAddress);
             return CreatedAtAction(nameof(GetById), new { id = usuario.IdUsuario }, usuario);
         }
         catch (InvalidOperationException ex)
@@ -54,12 +61,15 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [ServiceFilter(typeof(CambiarPasswordAccessFilter))]
+    [Authorize]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUsuarioRequest request)
     {
         try
         {
-            var usuario = await _usuarioService.UpdateAsync(id, request);
+            var idEditor = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var usuario = await _usuarioService.UpdateAsync(id, request, idEditor, ipAddress);
             return Ok(usuario);
         }
         catch (InvalidOperationException ex)
@@ -74,7 +84,9 @@ public class UsuariosController : ControllerBase
     {
         try
         {
-            var usuario = await _usuarioService.CambiarEstadoAsync(id, request.Activo);
+            var idEditor = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+            var usuario = await _usuarioService.CambiarEstadoAsync(id, request.Activo, idEditor, ipAddress);
             return Ok(usuario);
         }
         catch (InvalidOperationException ex)

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SistemaTikets.Application.DTOs.Auth;
 using SistemaTikets.Application.Services;
+using SistemaTikets.WebApi.Helpers;
 
 namespace SistemaTikets.WebApi.Controllers;
 
@@ -18,7 +19,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var response = await _authService.LoginAsync(request);
+        var ipAddress = IpHelper.GetClientIpAddress(HttpContext);
+        var response = await _authService.LoginAsync(request, ipAddress);
 
         if (response == null)
             return Unauthorized(new { message = "Usuario o contraseña incorrectos" });

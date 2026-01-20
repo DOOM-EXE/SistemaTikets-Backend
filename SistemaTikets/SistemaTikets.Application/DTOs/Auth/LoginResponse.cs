@@ -8,4 +8,5 @@ public class LoginResponse
     public string Username { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
     public int? IdAreaAsignada { get; set; }
+    public bool DebeCambiarPassword { get; set; }
 }
